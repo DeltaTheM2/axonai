@@ -1,284 +1,203 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class UserHomepage extends StatefulWidget {
-  const UserHomepage({Key? key}) : super(key: key);
+class UserHomepage extends StatelessWidget {
+  final String uid; // The authenticated user's UID
 
-  @override
-  State<UserHomepage> createState() => _UserHomepageState();
-}
-
-class _UserHomepageState extends State<UserHomepage> {
-  late String uid;
-  // Filter options: Weekly, Monthly, All.
-  final List<String> _rangeOptions = ["Weekly", "Monthly", "All"];
-  String _selectedRange = "Weekly";
-
-  @override
-  void initState() {
-    super.initState();
-    uid = FirebaseAuth.instance.currentUser!.uid;
-  }
-
-  /// Build participation entries from the events where the user signed up.
-  /// For each event document, the key will be the event's date (converted from the stored timestamp)
-  /// and the value is the participation hours from the event’s participation_hours map (if any).
-  List<MapEntry<DateTime, double>> _buildParticipationEntries(QuerySnapshot snapshot) {
-    final entries = <MapEntry<DateTime, double>>[];
-    for (var doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      if (data.containsKey('date')) {
-        // Convert Firestore timestamp (or milliseconds) to DateTime.
-        final eventDate = DateTime.fromMillisecondsSinceEpoch(data['date']);
-        double hours = 0.0;
-        if (data.containsKey('participation_hours')) {
-          final partMap = data['participation_hours'];
-          if (partMap is Map<String, dynamic> && partMap.containsKey(uid)) {
-            final value = partMap[uid];
-            hours = (value is num) ? value.toDouble() : 0.0;
-          }
-        }
-        entries.add(MapEntry(eventDate, hours));
-      }
-    }
-    // Sort entries by date (oldest first).
-    entries.sort((a, b) => a.key.compareTo(b.key));
-    return entries;
-  }
-
-  /// Filter entries for the last [days] days.
-  List<MapEntry<DateTime, double>> _filterByDays(
-      List<MapEntry<DateTime, double>> allEntries,
-      int days,
-      ) {
-    final now = DateTime.now();
-    final cutoff = now.subtract(Duration(days: days));
-    return allEntries.where((e) => e.key.isAfter(cutoff)).toList();
-  }
-
-  /// Returns the widget with the bar chart and total hours, given the (date, hours) entries.
-  Widget _buildChartWidget(List<MapEntry<DateTime, double>> entries) {
-    if (entries.isEmpty) {
-      return const Center(child: Text('No data available'));
-    }
-
-    // If all values are zero, show a friendly message.
-    if (entries.every((e) => e.value == 0)) {
-      return const Center(child: Text('No data available'));
-    }
-
-    double maxY = 0;
-    final barData = <BarChartGroupData>[];
-    final dates = <DateTime>[];
-
-    for (int i = 0; i < entries.length; i++) {
-      final entry = entries[i];
-      dates.add(entry.key);
-      if (entry.value > maxY) maxY = entry.value;
-
-      barData.add(
-        BarChartGroupData(
-          x: i,
-          barRods: [
-            BarChartRodData(
-              toY: entry.value,
-              width: 20,
-              borderRadius: BorderRadius.circular(6),
-              gradient: const LinearGradient(
-                colors: [Colors.blue, Colors.lightBlueAccent],
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Calculate total hours.
-    final totalHours = entries.fold<double>(0, (sum, entry) => sum + entry.value);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Total Hours:",
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "${totalHours.toStringAsFixed(1)}h",
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Theme.of(context).primaryColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            "Activity Chart",
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY: (maxY < 1) ? 1 : maxY,
-                    titlesData: FlTitlesData(
-                      show: true,
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 30,
-                          getTitlesWidget: (value, meta) =>
-                              _buildBottomTitle(value, meta, dates),
-                        ),
-                      ),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 40,
-                          interval: 1,
-                          getTitlesWidget: (value, meta) {
-                            if (value % 1 == 0) {
-                              return SideTitleWidget(
-                                meta: meta,
-                                child: Text(
-                                  '${value.toInt()}h',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[200],
-                                  ),
-                                ),
-                              );
-                            }
-                            return Container();
-                          },
-                        ),
-                      ),
-                      topTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      horizontalInterval: 1,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: Colors.grey[200]!,
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    barGroups: barData,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build the bottom (x-axis) label: e.g. "M/d"
-  Widget _buildBottomTitle(double value, TitleMeta meta, List<DateTime> dates) {
-    if (value < 0 || value >= dates.length) return Container();
-    final date = dates[value.toInt()];
-    final label = "${date.month}/${date.day}";
-    return SideTitleWidget(
-      meta: meta,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: Colors.grey[300],
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
+  const UserHomepage({required this.uid, super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('events')
-            .where('signUps', arrayContains: uid)
-            .orderBy('date')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-
-          // Build participation entries from the events snapshot.
-          final allEntries = _buildParticipationEntries(snapshot.data!);
-
-          // Filter based on the selected range.
-          List<MapEntry<DateTime, double>> filteredEntries;
-          if (_selectedRange == "Weekly") {
-            filteredEntries = _filterByDays(allEntries, 7);
-          } else if (_selectedRange == "Monthly") {
-            filteredEntries = _filterByDays(allEntries, 30);
-          } else {
-            filteredEntries = allEntries;
+      body: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+        builder: (context, userSnapshot) {
+          if (userSnapshot.hasError) {
+            return const Center(child: Text('Error loading user data'));
+          }
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
           }
 
-          return Column(
-            children: [
-              // Dropdown filter.
-              Padding(
+          // Check if user document exists and has a non-null deviceID
+          final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+          final deviceID = userData?['deviceID'];
+
+          if (deviceID == null) {
+            return const Center(
+              child: Text(
+                'No paired devices',
+                style: TextStyle(fontSize: 18),
+              ),
+            );
+          }
+
+          // If deviceID exists, proceed to show device status
+          return StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .collection('status')
+                .doc('latest')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Center(child: Text('Error loading device status'));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (!snapshot.hasData || !snapshot.data!.exists) {
+                return const Center(child: Text('No device status available'));
+              }
+
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              final status = data['status'] as String? ?? 'Unknown';
+              final signal = data['signal'] as num? ?? 0;
+              final battery = data['battery'] as num? ?? 0;
+              final humidity = data['humidity'] as num? ?? 0;
+              final temp = data['temp'] as num? ?? 0;
+
+              return Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Select Range:",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    // Wide Device Status Card
+                    Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Device Status',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Icon(
+                                  status != 'Unknown' ? Icons.check_circle : Icons.error,
+                                  size: 28,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Status: $status',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.signal_cellular_alt, size: 24),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Signal: $signal%',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.battery_full, size: 24),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Battery: $battery%',
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 16),
-                    DropdownButton<String>(
-                      value: _selectedRange,
-                      items: _rangeOptions.map((String item) {
-                        return DropdownMenuItem<String>(
-                          value: item,
-                          child: Text(item),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedRange = newValue;
-                          });
-                        }
-                      },
+                    const SizedBox(height: 16),
+                    // Two Square Cards for Time Remaining and Conditions
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Time Remaining Card
+                        _buildSquareCard(
+                          context,
+                          'Time Remaining',
+                          status.contains('In Use') ? '5 Hours' : 'N/A',
+                          Icons.timer,
+                        ),
+                        const SizedBox(width: 10),
+                        // Conditions Card
+                        _buildSquareCard(
+                          context,
+                          'Conditions',
+                          'Temp: $temp°F\nHumidity: $humidity%',
+                          Icons.thermostat,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-              // Expanded chart.
-              Expanded(child: _buildChartWidget(filteredEntries)),
-            ],
+              );
+            },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSquareCard(BuildContext context, String title, String value, IconData icon) {
+    // Calculate the width of each card (half the screen width minus padding and spacing)
+    final cardWidth = (MediaQuery.of(context).size.width - 16 * 2 - 10) / 2;
+    const cardHeight = 150.0; // Fixed height for square cards
+
+    return SizedBox(
+      width: cardWidth,
+      height: cardHeight, // Fixed height to make it square
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis, // Prevent title overflow
+                    ),
+                  ),
+                  Icon(icon, size: 20), // Reduced icon size to prevent overflow
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(fontSize: 16),
+                  maxLines: 2, // Limit to 2 lines to prevent overflow
+                  overflow: TextOverflow.ellipsis, // Handle overflow gracefully
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
