@@ -157,7 +157,7 @@ class _UserHomepageState extends State<UserHomepage> {
                           getTitlesWidget: (value, meta) {
                             if (value % 1 == 0) {
                               return SideTitleWidget(
-                                axisSide: meta.axisSide,
+                                meta: meta,
                                 child: Text(
                                   '${value.toInt()}h',
                                   style: TextStyle(
@@ -205,7 +205,7 @@ class _UserHomepageState extends State<UserHomepage> {
     final date = dates[value.toInt()];
     final label = "${date.month}/${date.day}";
     return SideTitleWidget(
-      axisSide: meta.axisSide,
+      meta: meta,
       child: Text(
         label,
         style: TextStyle(
