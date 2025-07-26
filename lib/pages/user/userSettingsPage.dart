@@ -1,12 +1,12 @@
 import 'package:axonai/components/ColorPallete.dart';
 import 'package:axonai/firebase/authentication.dart';
-import 'package:axonai/pages/accountInformation.dart';
-import 'package:axonai/pages/deviceSettingsPage.dart';
 import 'package:axonai/pages/loginPage.dart';
+import 'package:axonai/pages/user/accountInformation.dart';
+import 'package:axonai/pages/user/deviceSettingsPage.dart';
 import 'package:flutter/material.dart';
 
 
-class SettingsPage extends StatelessWidget {
+class UserSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(

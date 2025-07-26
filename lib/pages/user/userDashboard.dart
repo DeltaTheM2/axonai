@@ -1,9 +1,9 @@
-import 'package:fin_mentor/user/event_list_user.dart';
-import 'package:fin_mentor/auth/loginPage.dart';
-import 'package:fin_mentor/user/userHomepage.dart';
-import 'package:fin_mentor/user/userResources.dart';
+import 'package:axonai/firebase/authentication.dart';
+import 'package:axonai/pages/loginPage.dart';
+import 'package:axonai/pages/user/userHistoryPage.dart';
+import 'package:axonai/pages/user/userHomepage.dart';
+import 'package:axonai/pages/user/userSettingsPage.dart';
 import 'package:flutter/material.dart';
-import '../auth/authentication.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({Key? key}) : super(key: key);
@@ -17,8 +17,8 @@ class _UserDashboardState extends State<UserDashboard> {
 
   final List<Widget> _pageWidgets = [
     UserHomepage(),
-    EventListUser(),
-    UserResources(),
+    UserHistoryPage(),
+    UserSettingsPage(),
   ];
 
   void _onItemTapped(int index) {

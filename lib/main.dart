@@ -1,9 +1,8 @@
-// main.dart
 import 'package:axonai/firebase/authentication.dart';
+import 'package:axonai/firebase_options.dart';
 import 'package:axonai/pages/coach/adminDashboard.dart';
 import 'package:axonai/pages/loginPage.dart';
 import 'package:axonai/pages/user/userDashboard.dart';
-import 'package:axonai/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
