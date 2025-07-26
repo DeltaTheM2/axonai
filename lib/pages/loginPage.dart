@@ -1,8 +1,7 @@
 import 'package:axonai/firebase/authentication.dart';
-import 'package:fin_mentor/admin/admin_dashboard.dart';
-import 'package:fin_mentor/auth/authentication.dart';
-import 'package:fin_mentor/auth/signupPage.dart';
-import 'package:fin_mentor/user/user_dashboard.dart';
+import 'package:axonai/pages/coach/adminDashboard.dart';
+import 'package:axonai/pages/signupPage.dart';
+import 'package:axonai/pages/user/userDashboard.dart';
 import 'package:flutter/material.dart';
 
 class LoginPage extends StatelessWidget {
